@@ -1,0 +1,131 @@
+import serial
+import time
+import sys
+import pygame
+from pyrebase import pyrebase
+import firebase_admin
+from firebase_admin import credentials
+from google.cloud import firestore
+from firebase_admin import firestore
+
+# heart -> aduino
+port = '/dev/ttyUSB0'
+brate = 9600
+cmd ='temp'
+
+seri = serial.Serial(port, baudrate = brate, timeout = None)
+print(seri.name)
+
+# Heart bpm avg -> count 336 times
+def heart_avg():
+    Heart_sum = 0
+    for val in range(1):
+        content = seri.readline()
+        val = content[:-2].decode()
+        Heart_sum = Heart_sum + int(val)
+        Heart_avg = Heart_sum/5
+    return Heart_avg
+
+heartavg = heart_avg()
+print(heartavg)
+
+# weight
+EMULATE_HX711=False
+
+referenceUnit = 1
+
+if not EMULATE_HX711:
+    import RPi.GPIO as GPIO
+    from hx711 import HX711
+else:
+    from emulated_hx711 import HX711
+
+hx = HX711(20, 16)
+hx.set_reading_format("MSB", "MSB")
+hx.set_reference_unit(-1982)
+hx.reset()
+hx.tare()
+
+
+# realtime
+config = {
+    'apiKey': 'AIzaSyBiZY92DSbx1y1CWF8xC8xLgaz-jYR9ufs',
+    'authDomain': 'smartringersystem.firebaseapp.com',
+    'databaseURL': 'https://smartringersystem-default-rtdb.firebaseio.com',
+    'storageBucket': 'smartringersystem.appspot.com '
+    }
+
+firebase_r = pyrebase.initialize_app(config)
+db_r = firebase_r.database()
+
+
+# firestore
+cred = credentials.Certificate("smartringersystem-firebase-adminsdk-xx1zy-a7d5383219.json")
+firebase_admin.initialize_app(cred)
+db_s = firestore.client()
+
+doc_ref = db_s.collection(u'Users').document(u'A708b')
+
+
+
+        
+while True:
+    
+
+    
+    heart bpm
+    content = seri.readline()
+    heart = content[:-2].decode()
+    
+    print({"heart_now": heart})
+        
+    # weight
+    weight = hx.get_weight(5)
+    weight = int(weight)
+    print({"weight": weight})
+    
+            
+    hx.power_down()
+    hx.power_up()
+
+    
+    # firestore
+    doc_ref.update({u'heartavg' : str(heartavg)})
+
+    # realtimes   
+    dato1 = {'heart_now': str(하트)}
+    dato2 = {'weight': str(weight)}
+    
+    db_r .child('SmartRinger').child('UserAccount').child('RingRing1').set(dato1)
+    db_r .child('SmartRinger').child('UserAccount').child('RingRing2').set(dato2)
+    
+    # read  
+    serv = doc_ref.get(field_paths={'Service'}).to_dict().get('Service')
+    print({"service": serv})
+
+    # heartavg -> music
+    pygame.mixer.init()
+    if heartavg < 1.1 * int(하트):
+        if serv == ' meditation': 
+            pygame.mixer.music.load("/home/pi/smartfarm/smartringer/mp3/meditation.mp3")
+            float = 0.5
+            pygame.mixer.music.set_volume(float)
+            pygame.mixer.music.play()
+            doc_ref.update({u'Service' : ' '})
+        elif serv == ' stretch': 
+            pygame.mixer.music.load("/home/pi/smartfarm/smartringer/mp3/stretch.mp3")
+            float = 0.5
+            pygame.mixer.music.set_volume(float)
+            pygame.mixer.music.play()
+            doc_ref.update({u'Service' : ' '})
+        elif serv == ' whitenoise': 
+            pygame.mixer.music.load("/home/pi/smartfarm/smartringer/mp3/whitenoise.mp3")
+            float = 0.5
+            pygame.mixer.music.set_volume(float)
+            pygame.mixer.music.play()
+            doc_ref.update({u'Service' : ' '})
+    elif heartavg < 1.3 * int(하트):
+        print("danger")
+        
+    
+    time.sleep(10)    
